@@ -8,6 +8,15 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Permitir que Discord incruste la página y se comunique con Railway
+app.use((req, res, next) => {
+    res.setHeader(
+        "Content-Security-Policy",
+        "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src * 'unsafe-inline' https://ai.blobloxsupport.online wss:;"
+    );
+    next();
+});
+
 const app = express();
 app.use(cors());
 app.use(express.json());
