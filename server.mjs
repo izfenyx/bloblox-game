@@ -21,8 +21,8 @@ app.post('/api/chat', async (req, res) => {
         const { message } = req.body;
         if (!message) return res.status(400).json({ error: 'Mensaje vacío' });
 
-        // Usamos el modelo estable actual exigido por la API de Google
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${GEMINI_API_KEY}`;
+        // Usamos un modelo ágil y optimizado para respuestas rápidas en Discord
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
         const bodyPayload = {
             system_instruction: {
