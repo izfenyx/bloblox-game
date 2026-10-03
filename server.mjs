@@ -21,8 +21,8 @@ app.post('/api/chat', async (req, res) => {
         const { message } = req.body;
         if (!message) return res.status(400).json({ error: 'Mensaje vacío' });
 
-        // Usamos el modelo estable y rápido actual de Google
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        // Usamos el modelo Flash-Lite, optimizado para ultra baja latencia y alta velocidad en tiempo real
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
 
         const bodyPayload = {
             system_instruction: {
