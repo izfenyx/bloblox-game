@@ -197,7 +197,7 @@
 <body>
 
     <div class="container">
-        <!-- Panel Izquierdo: Avatar con imágenes reales -->
+        <!-- Panel Izquierdo: Avatar con tus imágenes -->
         <div class="avatar-panel">
             <div class="ai-name">Bloblox IA</div>
             <div class="avatar-container" id="avatarBox">
@@ -244,30 +244,34 @@
 
                 const utterance = new SpeechSynthesisUtterance(text);
                 
-                // Forzar la selección de una voz femenina en español buscando nombres comunes o perfiles de mujer
-                let femaleVoice = voices.find(v => v.lang.startsWith('es') && (
+                // Forzar la selección estricta de voz femenina en español
+                let spanishVoices = voices.filter(v => v.lang.startsWith('es'));
+                let femaleVoice = spanishVoices.find(v => 
+                    v.name.toLowerCase().includes('female') || 
+                    v.name.toLowerCase().includes('woman') || 
                     v.name.toLowerCase().includes('helena') || 
                     v.name.toLowerCase().includes('laura') || 
                     v.name.toLowerCase().includes('zira') || 
                     v.name.toLowerCase().includes('lucia') || 
                     v.name.toLowerCase().includes('sabina') || 
                     v.name.toLowerCase().includes('paula') || 
-                    v.name.toLowerCase().includes('monica') || 
-                    v.name.toLowerCase().includes('female') ||
-                    v.name.toLowerCase().includes('woman')
-                ));
+                    v.name.toLowerCase().includes('monica') ||
+                    v.name.toLowerCase().includes('sofia') ||
+                    v.name.toLowerCase().includes('conchita') ||
+                    v.name.toLowerCase().includes('mia')
+                );
 
-                // Si no encuentra una con nombre específico, busca cualquier voz en español que no sea explícitamente masculina (como Pablo, Raúl, etc.)
-                if (!femaleVoice) {
-                    femaleVoice = voices.find(v => v.lang.startsWith('es') && !v.name.toLowerCase().includes('pablo') && !v.name.toLowerCase().includes('raul') && !v.name.toLowerCase().includes('alvaro') && !v.name.toLowerCase().includes('jorge'));
+                // Si no encuentra una con nombre clave, toma una de la lista de español que no sea masculina
+                if (!femaleVoice && spanishVoices.length > 0) {
+                    femaleVoice = spanishVoices.find(v => !v.name.toLowerCase().includes('pablo') && !v.name.toLowerCase().includes('raul') && !v.name.toLowerCase().includes('alvaro') && !v.name.toLowerCase().includes('jorge')) || spanishVoices[0];
                 }
 
                 if (femaleVoice) {
                     utterance.voice = femaleVoice;
                 }
 
-                utterance.rate = 1.05; // Velocidad ligeramente más fluida
-                utterance.pitch = 1.4; // Tono más alto para asegurar que suene como voz femenina infantil/juvenil o clara
+                utterance.rate = 1.05; 
+                utterance.pitch = 1.6; // Tono más alto y claro para garantizar voz de mujer
 
                 let mouthInterval;
 
@@ -310,6 +314,35 @@
             }
         }
 
+        // Generador de respuestas inteligentes y variadas según lo que escribas
+        function getAIResponse(userText) {
+            const text = userText.toLowerCase();
+
+            if (text.includes('hola') || text.includes('saludos') || text.includes('buenas')) {
+                return "¡Hola! Qué gusto saludarte por aquí en la actividad de Discord. ¿En qué te puedo colaborar?";
+            } else if (text.includes('minecraft') || text.includes('servidor') || text.includes('lovelycraft')) {
+                return "¡Ah, hablemos de Minecraft! Tu servidor está configurado y listado correctamente. ¿Necesitas ayuda con algún plugin o ajuste?";
+            } else if (text.includes('vrchat') || text.includes('avatar')) {
+                return "VRChat es genial para personalizar avatares y mundos. ¿Estás trabajando en algún proyecto o mundo nuevo por ahí?";
+            } else if (text.includes('quién eres') || text.includes('que eres') || text.includes('como te llamas')) {
+                return "Soy Bloblox IA, tu asistente virtual integrada en esta actividad de Discord para ayudarte con tus proyectos y mantener charlas divertidas.";
+            } else if (text.includes('gracias') || text.includes('excelente') || text.includes('perfecto')) {
+                return "¡De nada! Para eso estoy aquí. Avísame si necesitas configurar algo más en la web.";
+            } else if (text.includes('ayuda') || text.includes('comandos')) {
+                return "Puedo charlar contigo, responder dudas sobre programación, juegos o servidores. ¡Escribe lo que quieras y te respondo!";
+            } else {
+                // Respuestas dinámicas generales para que nunca suene repetitivo
+                const options = [
+                    "Interesante punto de vista. Cuéntame más al respecto.",
+                    "Entendido perfectamente. ¿Hay algo más en lo que te pueda apoyar por aquí?",
+                    "¡Vaya! Eso suena genial. ¿Cómo planeas desarrollarlo?",
+                    "Estoy procesando lo que me dices, ¡me encanta aprender cosas nuevas de ti!",
+                    "Claro que sí, toma eso en cuenta para optimizarlo al máximo."
+                ];
+                return options[Math.floor(Math.random() * options.length)];
+            }
+        }
+
         function handleSendMessage() {
             const text = userInput.value.trim();
             if (!text) return;
@@ -323,12 +356,7 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
 
             setTimeout(() => {
-                let aiResponseText = "Entendido. Procesando tu solicitud en Bloblox.";
-                if (text.toLowerCase().includes('hola')) {
-                    aiResponseText = "¡Hola de nuevo! Es un placer saludarte dentro de esta actividad.";
-                } else if (text.toLowerCase().includes('ayuda')) {
-                    aiResponseText = "Claro, dime en qué te puedo ayudar con tu servidor o tu proyecto.";
-                }
+                const aiResponseText = getAIResponse(text);
 
                 const aiMsg = document.createElement('div');
                 aiMsg.className = 'message ai';
