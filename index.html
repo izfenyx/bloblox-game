@@ -35,7 +35,7 @@
             overflow: hidden;
         }
 
-        /* Panel Izquierdo: Avatar y Voz */
+        /* Panel Izquierdo: Avatar con imágenes reales */
         .avatar-panel {
             flex: 1;
             background: linear-gradient(135deg, #1f2430 0%, #13161f 100%);
@@ -58,17 +58,17 @@
         }
 
         .avatar-container {
-            width: 150px;
-            height: 150px;
+            width: 160px;
+            height: 160px;
             border-radius: 50%;
-            background: #2d3343;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            position: relative;
+            overflow: hidden;
             border: 4px solid #7289da;
             box-shadow: 0 0 20px rgba(114, 137, 218, 0.3);
+            background: #2d3343;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             transition: transform 0.3s ease;
         }
 
@@ -77,48 +77,27 @@
             box-shadow: 0 0 30px rgba(114, 137, 218, 0.6);
         }
 
-        /* Ojos del avatar */
-        .eyes {
-            display: flex;
-            gap: 25px;
-            margin-bottom: 15px;
-        }
-
-        .eye {
-            width: 14px;
-            height: 14px;
-            background: #ffffff;
-            border-radius: 50%;
-            position: relative;
-        }
-
-        .eye::after {
-            content: '';
+        .avatar-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
             position: absolute;
-            width: 6px;
-            height: 6px;
-            background: #0f1117;
-            border-radius: 50%;
-            top: 3px;
-            left: 3px;
+            top: 0;
+            left: 0;
+            transition: opacity 0.05s ease-in-out;
         }
 
-        /* Boca animada para sincronización de voz */
-        .mouth {
-            width: 30px;
-            height: 10px;
-            background: #ffffff;
-            border-radius: 0 0 15px 15px;
-            transition: height 0.1s ease, border-radius 0.1s ease;
+        /* Control de qué imagen se muestra */
+        #imgOpen {
+            opacity: 0;
         }
 
-        .avatar-container.speaking .mouth {
-            animation: speakAnimation 0.3s infinite alternate;
+        .avatar-container.speaking #imgClosed {
+            opacity: 0;
         }
 
-        @keyframes speakAnimation {
-            0% { height: 8px; border-radius: 0 0 10px 10px; }
-            100% { height: 22px; border-radius: 50%; }
+        .avatar-container.speaking #imgOpen {
+            opacity: 1;
         }
 
         .status-indicator {
@@ -219,15 +198,13 @@
 <body>
 
     <div class="container">
-        <!-- Panel Izquierdo: Avatar con boca sincronizada -->
+        <!-- Panel Izquierdo: Avatar con imágenes reales y sincronizadas -->
         <div class="avatar-panel">
             <div class="ai-name">Bloblox IA</div>
             <div class="avatar-container" id="avatarBox">
-                <div class="eyes">
-                    <div class="eye"></div>
-                    <div class="eye"></div>
-                </div>
-                <div class="mouth" id="mouthBox"></div>
+                <!-- REEMPLAZA "boca-cerrada.png" y "boca-abierta.png" con los nombres exactos de tus imágenes -->
+                <img id="imgClosed" src="boca-cerrada.png" alt="Avatar Boca Cerrada">
+                <img id="imgOpen" src="boca-abierta.png" alt="Avatar Boca Abierta">
             </div>
             <div class="status-indicator">
                 <div class="status-dot"></div>
@@ -254,29 +231,74 @@
         const avatarBox = document.getElementById('avatarBox');
         const statusText = document.getElementById('statusText');
 
-        // Función para hacer que la IA hable y mueva la boca sincronizadamente
+        let voices = [];
+
+        // Cargar las voces disponibles del navegador
+        function loadVoices() {
+            voices = window.speechSynthesis.getVoices();
+        }
+
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+        loadVoices();
+
+        // Función para hablar con voz de mujer y alternar las imágenes de la boca
         function speakText(text) {
             if ('speechSynthesis' in window) {
-                // Cancelar cualquier audio anterior
                 window.speechSynthesis.cancel();
 
                 const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'es-ES'; // Idioma español
-                utterance.rate = 1.0;
+                
+                // Buscar una voz en español que sea femenina (busca palabras clave como "female", "helena", "laura", "sabina", "es-es", etc.)
+                let selectedVoice = voices.find(v => v.lang.startsWith('es') && (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('woman') || v.name.toLowerCase().includes('helena') || v.name.toLowerCase().includes('laura') || v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('lucia')));
+                
+                // Si no encuentra una explícitamente femenina, toma la primera en español disponible que no sea claramente masculina
+                if (!selectedVoice) {
+                    selectedVoice = voices.find(v => v.lang.startsWith('es'));
+                }
 
-                // Eventos de sincronización de voz y avatar
+                if (selectedVoice) {
+                    utterance.voice = selectedVoice;
+                }
+
+                utterance.rate = 1.0;
+                utterance.pitch = 1.2; // Tono ligeramente más alto para acentuar voz femenina
+
+                // Simular parpadeo de movimiento de boca alternando las imágenes rápidamente mientras habla
+                let mouthInterval;
+
                 utterance.onstart = () => {
                     avatarBox.classList.add('speaking');
                     statusText.textContent = 'Hablando...';
+
+                    // Alterna la boca abierta y cerrada cada 150ms para que se vea dinámico al hablar
+                    let isOpen = false;
+                    mouthInterval = setInterval(() => {
+                        isOpen = !isOpen;
+                        const imgClosed = document.getElementById('imgClosed');
+                        const imgOpen = document.getElementById('imgOpen');
+                        if (isOpen) {
+                            imgClosed.style.opacity = '0';
+                            imgOpen.style.opacity = '1';
+                        } else {
+                            imgClosed.style.opacity = '1';
+                            imgOpen.style.opacity = '0';
+                        }
+                    }, 180);
                 };
 
                 utterance.onend = () => {
+                    clearInterval(mouthInterval);
                     avatarBox.classList.remove('speaking');
+                    document.getElementById('imgClosed').style.opacity = '1';
+                    document.getElementById('imgOpen').style.opacity = '0';
                     statusText.textContent = 'Lista para hablar';
                 };
 
                 utterance.onerror = () => {
+                    clearInterval(mouthInterval);
                     avatarBox.classList.remove('speaking');
+                    document.getElementById('imgClosed').style.opacity = '1';
+                    document.getElementById('imgOpen').style.opacity = '0';
                     statusText.textContent = 'Lista para hablar';
                 };
 
@@ -284,12 +306,11 @@
             }
         }
 
-        // Lógica de envío de mensajes
+        // Lógica de mensajes
         function handleSendMessage() {
             const text = userInput.value.trim();
             if (!text) return;
 
-            // Mostrar mensaje del usuario
             const userMsg = document.createElement('div');
             userMsg.className = 'message user';
             userMsg.textContent = text;
@@ -298,13 +319,12 @@
             userInput.value = '';
             chatMessages.scrollTop = chatMessages.scrollHeight;
 
-            // Simulación de respuesta de la IA (puedes conectar tu backend o API aquí)
             setTimeout(() => {
                 let aiResponseText = "Entendido. Procesando tu solicitud en Bloblox.";
                 if (text.toLowerCase().includes('hola')) {
-                    aiResponseText = "¡Hola de nuevo! Es un placer saludarte dentro de esta actividad de Discord.";
+                    aiResponseText = "¡Hola de nuevo! Es un placer saludarte dentro de esta actividad.";
                 } else if (text.toLowerCase().includes('ayuda')) {
-                    aiResponseText = "Claro, dime en qué necesitas asistencia con respecto a tu servidor o juego.";
+                    aiResponseText = "Claro, dime en qué te puedo ayudar con tu servidor o tu proyecto.";
                 }
 
                 const aiMsg = document.createElement('div');
@@ -313,7 +333,6 @@
                 chatMessages.appendChild(aiMsg);
                 chatMessages.scrollTop = chatMessages.scrollHeight;
 
-                // Activar la voz y la animación de la boca
                 speakText(aiResponseText);
             }, 600);
         }
@@ -325,7 +344,6 @@
             }
         });
 
-        // Saludo de bienvenida por voz al cargar (opcional)
         window.addEventListener('load', () => {
             setTimeout(() => {
                 speakText("¡Hola! Soy Bloblox IA, tu asistente de voz. ¿En qué te puedo ayudar hoy?");
