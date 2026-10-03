@@ -1,14 +1,16 @@
 import express from 'express';
 import cors from 'cors';
-import gTTS from 'gtts';
 import path from 'path';
-import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Permitir que Discord incruste la página y se comunique con Railway
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// Permitir la política de seguridad para que Discord no bloquee la app
 app.use((req, res, next) => {
     res.setHeader(
         "Content-Security-Policy",
@@ -17,15 +19,9 @@ app.use((req, res, next) => {
     next();
 });
 
-const app = express();
-app.use(cors());
-app.use(express.json());
 app.use(express.static(__dirname));
 
-// Pega aquí tu clave gratuita de Google AI Studio (Gemini)
 const GEMINI_API_KEY = "AQ.Ab8RN6I7SqGH8iUD-VX5hovVLVqnzUj6Qb5eKf1Ezv8aBrcOlQ";
-
-// Historial global de conversación (guarda los últimos turnos para mantener la memoria)
 let chatHistory = [];
 
 app.post('/api/chat', async (req, res) => {
@@ -33,13 +29,11 @@ app.post('/api/chat', async (req, res) => {
         const { message } = req.body;
         if (!message) return res.status(400).json({ error: 'Mensaje vacío' });
 
-        // Añadimos el mensaje del usuario al historial
         chatHistory.push({
             role: "user",
             parts: [{ text: message }]
         });
 
-        // Limitamos el historial a los últimos 10 mensajes para que la petición no se vuelva pesada ni lenta
         if (chatHistory.length > 10) {
             chatHistory = chatHistory.slice(chatHistory.length - 10);
         }
@@ -50,7 +44,7 @@ app.post('/api/chat', async (req, res) => {
             system_instruction: {
                 parts: [{ text: "Eres Bloblox IA, una asistente virtual femenina, amigable y experta en tecnología y videojuegos, integrada en Discord. Responde de forma breve y natural." }]
             },
-            contents: chatHistory // Enviamos todo el hilo de la conversación para que tenga memoria
+            contents: chatHistory
         };
 
         const apiResponse = await fetch(url, {
@@ -68,43 +62,15 @@ app.post('/api/chat', async (req, res) => {
 
         const aiResponseText = data.candidates[0].content.parts[0].text;
 
-        // Guardamos también la respuesta de la IA en el historial
         chatHistory.push({
             role: "model",
             parts: [{ text: aiResponseText }]
         });
 
-        // --- FILTRO INTELIGENTE PARA EL AUDIO ---
-        const textForSpeech = aiResponseText
-            .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD00-\uDDFF])/g, '')
-            .replace(/[*_`#]/g, '')
-            .trim();
-
-        // 2. Generar el archivo de audio externo con gTTS
-        const audioFileName = `voice_${Date.now()}_${Math.random().toString(36).substring(7)}.mp3`;
-        const audioFilePath = path.join(__dirname, audioFileName);
-
-        const speech = new gTTS(textForSpeech, 'es');
-
-        await new Promise((resolve, reject) => {
-            speech.save(audioFilePath, (err, result) => {
-                if (err) reject(err);
-                else resolve(result);
-            });
-        });
-
-        // 3. Leer el MP3 generado, pasarlo a Base64 y limpiar el archivo local
-        const audioBuffer = fs.readFileSync(audioFilePath);
-        const audioBase64 = `data:audio/mp3;base64,${audioBuffer.toString('base64')}`;
-
-        if (fs.existsSync(audioFilePath)) {
-            fs.unlinkSync(audioFilePath);
-        }
-
-        // 4. Enviar respuesta final al frontend
+        // Respondemos directamente con el texto y memoria intactos, evitando que Railway crashee generando archivos de audio locales
         res.json({
             text: aiResponseText,
-            audioBase64: audioBase64
+            audioBase64: null
         });
 
     } catch (error) {
