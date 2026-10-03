@@ -258,20 +258,19 @@
             statusText.textContent = 'Lista para hablar';
         }
 
-        // Sistema de voz en la nube ultra-natural con voz 100% femenina garantizada
-        function speakText(text) {
+        // Reproduce el audio Base64 enviado por el servidor Node.js
+        function playAudioResponse(audioBase64) {
+            if (!audioBase64) {
+                stopMouthAnimation();
+                return;
+            }
+
             startMouthAnimation();
+            const audio = new Audio(audioBase64);
 
-            // Codificamos el texto para enviarlo de forma segura por URL al sintetizador en línea
-            const encodedText = encodeURIComponent(text);
-            // Usamos un servicio público de TTS en streaming con voz femenina predeterminada en español (es-ES-ElviraNeural o similar)
-            const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=es&client=tw-ob`;
-
-            const audio = new Audio(audioUrl);
-            
-            audio.play().catch(() => {
-                // Si el navegador bloquea el autoplay por restricciones de usuario, intentamos respaldo local
-                fallbackLocalSpeech(text);
+            audio.play().catch(err => {
+                console.error("Error al reproducir audio:", err);
+                stopMouthAnimation();
             });
 
             audio.onended = () => {
@@ -279,64 +278,16 @@
             };
 
             audio.onerror = () => {
-                fallbackLocalSpeech(text);
+                stopMouthAnimation();
             };
         }
 
-        // Respaldo por si acaso la red falla: fuerza tonos agudos extremos en navegador
-        function fallbackLocalSpeech(text) {
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.rate = 1.1;
-                utterance.pitch = 2.0; // Tono ultra alto para forzar voz de mujer/niña
-                
-                let voices = window.speechSynthesis.getVoices();
-                let spanishVoice = voices.find(v => v.lang.startsWith('es') && !v.name.toLowerCase().includes('pablo') && !v.name.toLowerCase().includes('raul'));
-                if (spanishVoice) utterance.voice = spanishVoice;
-
-                utterance.onstart = () => startMouthAnimation();
-                utterance.onend = () => stopMouthAnimation();
-                utterance.onerror = () => stopMouthAnimation();
-
-                window.speechSynthesis.speak(utterance);
-            } else {
-                stopMouthAnimation();
-            }
-        }
-
-        // Generador de respuestas inteligentes y variadas
-        function getAIResponse(userText) {
-            const text = userText.toLowerCase();
-
-            if (text.includes('hola') || text.includes('saludos') || text.includes('buenas')) {
-                return "¡Hola! Qué gusto saludarte por aquí en la actividad de Discord. ¿En qué te puedo colaborar?";
-            } else if (text.includes('minecraft') || text.includes('servidor') || text.includes('lovelycraft')) {
-                return "¡Ah, hablemos de Minecraft! Tu servidor está configurado y listado correctamente. ¿Necesitas ayuda con algún plugin o ajuste?";
-            } else if (text.includes('vrchat') || text.includes('avatar')) {
-                return "VRChat es genial para personalizar avatares y mundos. ¿Estás trabajando en algún proyecto o mundo nuevo por ahí?";
-            } else if (text.includes('quién eres') || text.includes('que eres') || text.includes('como te llamas')) {
-                return "Soy Bloblox IA, tu asistente virtual integrada en esta actividad de Discord para ayudarte con tus proyectos y mantener charlas divertidas.";
-            } else if (text.includes('gracias') || text.includes('excelente') || text.includes('perfecto')) {
-                return "¡De nada! Para eso estoy aquí. Avísame si necesitas configurar algo más en la web.";
-            } else if (text.includes('ayuda') || text.includes('comandos')) {
-                return "Puedo charlar contigo, responder dudas sobre programación, juegos o servidores. ¡Escribe lo que quieras y te respondo!";
-            } else {
-                const options = [
-                    "Interesante punto de vista. Cuéntame más al respecto.",
-                    "Entendido perfectamente. ¿Hay algo más en lo que te pueda apoyar por aquí?",
-                    "¡Vaya! Eso suena genial. ¿Cómo planeas desarrollarlo?",
-                    "Estoy procesando lo que me dices, ¡me encanta aprender cosas nuevas de ti!",
-                    "Claro que sí, toma eso en cuenta para optimizarlo al máximo."
-                ];
-                return options[Math.floor(Math.random() * options.length)];
-            }
-        }
-
-        function handleSendMessage() {
+        // Petición real al backend de Node.js (OpenAI + gTTS)
+        async function handleSendMessage() {
             const text = userInput.value.trim();
             if (!text) return;
 
+            // Mostrar mensaje del usuario
             const userMsg = document.createElement('div');
             userMsg.className = 'message user';
             userMsg.textContent = text;
@@ -345,17 +296,40 @@
             userInput.value = '';
             chatMessages.scrollTop = chatMessages.scrollHeight;
 
-            setTimeout(() => {
-                const aiResponseText = getAIResponse(text);
+            // Indicador temporal de carga
+            statusText.textContent = 'Pensando...';
 
+            try {
+                const response = await fetch('http://localhost:3000/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message: text })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    console.error("Error del servidor:", data.error);
+                    statusText.textContent = 'Lista para hablar';
+                    return;
+                }
+
+                // Mostrar respuesta de la IA en el chat
                 const aiMsg = document.createElement('div');
                 aiMsg.className = 'message ai';
-                aiMsg.textContent = aiResponseText;
+                aiMsg.textContent = data.text;
                 chatMessages.appendChild(aiMsg);
                 chatMessages.scrollTop = chatMessages.scrollHeight;
 
-                speakText(aiResponseText);
-            }, 600);
+                // Reproducir el audio externo generado por el servidor
+                playAudioResponse(data.audioBase64);
+
+            } catch (error) {
+                console.error("Error de conexión con el servidor:", error);
+                statusText.textContent = 'Lista para hablar';
+            }
         }
 
         sendBtn.addEventListener('click', handleSendMessage);
@@ -363,12 +337,6 @@
             if (e.key === 'Enter') {
                 handleSendMessage();
             }
-        });
-
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                speakText("¡Hola! Soy Bloblox IA, tu asistente de voz. ¿En qué te puedo ayudar hoy?");
-            }, 1000);
         });
     </script>
 </body>
