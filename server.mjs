@@ -16,24 +16,32 @@ app.use(express.static(__dirname));
 // Pega aquí tu clave gratuita de Google AI Studio (Gemini)
 const GEMINI_API_KEY = "AQ.Ab8RN6I7SqGH8iUD-VX5hovVLVqnzUj6Qb5eKf1Ezv8aBrcOlQ";
 
+// Historial global de conversación (guarda los últimos turnos para mantener la memoria)
+let chatHistory = [];
+
 app.post('/api/chat', async (req, res) => {
     try {
         const { message } = req.body;
         if (!message) return res.status(400).json({ error: 'Mensaje vacío' });
 
-        // Usamos el modelo Flash-Lite, optimizado para ultra baja latencia y alta velocidad en tiempo real
+        // Añadimos el mensaje del usuario al historial
+        chatHistory.push({
+            role: "user",
+            parts: [{ text: message }]
+        });
+
+        // Limitamos el historial a los últimos 10 mensajes para que la petición no se vuelva pesada ni lenta
+        if (chatHistory.length > 10) {
+            chatHistory = chatHistory.slice(chatHistory.length - 10);
+        }
+
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
 
         const bodyPayload = {
             system_instruction: {
                 parts: [{ text: "Eres Bloblox IA, una asistente virtual femenina, amigable y experta en tecnología y videojuegos, integrada en Discord. Responde de forma breve y natural." }]
             },
-            contents: [
-                {
-                    role: "user",
-                    parts: [{ text: message }]
-                }
-            ]
+            contents: chatHistory // Enviamos todo el hilo de la conversación para que tenga memoria
         };
 
         const apiResponse = await fetch(url, {
@@ -50,6 +58,12 @@ app.post('/api/chat', async (req, res) => {
         }
 
         const aiResponseText = data.candidates[0].content.parts[0].text;
+
+        // Guardamos también la respuesta de la IA en el historial
+        chatHistory.push({
+            role: "model",
+            parts: [{ text: aiResponseText }]
+        });
 
         // --- FILTRO INTELIGENTE PARA EL AUDIO ---
         const textForSpeech = aiResponseText
