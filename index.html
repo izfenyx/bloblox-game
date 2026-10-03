@@ -35,7 +35,7 @@
             overflow: hidden;
         }
 
-        /* Panel Izquierdo: Avatar con imágenes reales */
+        /* Panel Izquierdo: Avatar */
         .avatar-panel {
             flex: 1;
             background: linear-gradient(135deg, #1f2430 0%, #13161f 100%);
@@ -87,7 +87,6 @@
             transition: opacity 0.05s ease-in-out;
         }
 
-        /* Control de qué imagen se muestra */
         #imgOpen {
             opacity: 0;
         }
@@ -198,11 +197,10 @@
 <body>
 
     <div class="container">
-        <!-- Panel Izquierdo: Avatar con imágenes reales y sincronizadas -->
+        <!-- Panel Izquierdo: Avatar con imágenes reales -->
         <div class="avatar-panel">
             <div class="ai-name">Bloblox IA</div>
             <div class="avatar-container" id="avatarBox">
-                <!-- REEMPLAZA "boca-cerrada.png" y "boca-abierta.png" con los nombres exactos de tus imágenes -->
                 <img id="imgClosed" src="boca-cerrada.png" alt="Avatar Boca Cerrada">
                 <img id="imgOpen" src="boca-abierta.png" alt="Avatar Boca Abierta">
             </div>
@@ -212,7 +210,7 @@
             </div>
         </div>
 
-        <!-- Panel Derecho: Interfaz de Chat -->
+        <!-- Panel Derecho: Chat -->
         <div class="chat-panel">
             <div class="chat-messages" id="chatMessages">
                 <div class="message ai">¡Hola! Soy Bloblox IA, tu asistente de voz. ¿En qué te puedo ayudar hoy?</div>
@@ -233,7 +231,6 @@
 
         let voices = [];
 
-        // Cargar las voces disponibles del navegador
         function loadVoices() {
             voices = window.speechSynthesis.getVoices();
         }
@@ -241,36 +238,43 @@
         window.speechSynthesis.onvoiceschanged = loadVoices;
         loadVoices();
 
-        // Función para hablar con voz de mujer y alternar las imágenes de la boca
         function speakText(text) {
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
 
                 const utterance = new SpeechSynthesisUtterance(text);
                 
-                // Buscar una voz en español que sea femenina (busca palabras clave como "female", "helena", "laura", "sabina", "es-es", etc.)
-                let selectedVoice = voices.find(v => v.lang.startsWith('es') && (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('woman') || v.name.toLowerCase().includes('helena') || v.name.toLowerCase().includes('laura') || v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('lucia')));
-                
-                // Si no encuentra una explícitamente femenina, toma la primera en español disponible que no sea claramente masculina
-                if (!selectedVoice) {
-                    selectedVoice = voices.find(v => v.lang.startsWith('es'));
+                // Forzar la selección de una voz femenina en español buscando nombres comunes o perfiles de mujer
+                let femaleVoice = voices.find(v => v.lang.startsWith('es') && (
+                    v.name.toLowerCase().includes('helena') || 
+                    v.name.toLowerCase().includes('laura') || 
+                    v.name.toLowerCase().includes('zira') || 
+                    v.name.toLowerCase().includes('lucia') || 
+                    v.name.toLowerCase().includes('sabina') || 
+                    v.name.toLowerCase().includes('paula') || 
+                    v.name.toLowerCase().includes('monica') || 
+                    v.name.toLowerCase().includes('female') ||
+                    v.name.toLowerCase().includes('woman')
+                ));
+
+                // Si no encuentra una con nombre específico, busca cualquier voz en español que no sea explícitamente masculina (como Pablo, Raúl, etc.)
+                if (!femaleVoice) {
+                    femaleVoice = voices.find(v => v.lang.startsWith('es') && !v.name.toLowerCase().includes('pablo') && !v.name.toLowerCase().includes('raul') && !v.name.toLowerCase().includes('alvaro') && !v.name.toLowerCase().includes('jorge'));
                 }
 
-                if (selectedVoice) {
-                    utterance.voice = selectedVoice;
+                if (femaleVoice) {
+                    utterance.voice = femaleVoice;
                 }
 
-                utterance.rate = 1.0;
-                utterance.pitch = 1.2; // Tono ligeramente más alto para acentuar voz femenina
+                utterance.rate = 1.05; // Velocidad ligeramente más fluida
+                utterance.pitch = 1.4; // Tono más alto para asegurar que suene como voz femenina infantil/juvenil o clara
 
-                // Simular parpadeo de movimiento de boca alternando las imágenes rápidamente mientras habla
                 let mouthInterval;
 
                 utterance.onstart = () => {
                     avatarBox.classList.add('speaking');
                     statusText.textContent = 'Hablando...';
 
-                    // Alterna la boca abierta y cerrada cada 150ms para que se vea dinámico al hablar
                     let isOpen = false;
                     mouthInterval = setInterval(() => {
                         isOpen = !isOpen;
@@ -283,7 +287,7 @@
                             imgClosed.style.opacity = '1';
                             imgOpen.style.opacity = '0';
                         }
-                    }, 180);
+                    }, 150);
                 };
 
                 utterance.onend = () => {
@@ -306,7 +310,6 @@
             }
         }
 
-        // Lógica de mensajes
         function handleSendMessage() {
             const text = userInput.value.trim();
             if (!text) return;
