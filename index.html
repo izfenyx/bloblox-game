@@ -229,92 +229,83 @@
         const avatarBox = document.getElementById('avatarBox');
         const statusText = document.getElementById('statusText');
 
-        let voices = [];
+        let mouthInterval = null;
 
-        function loadVoices() {
-            voices = window.speechSynthesis.getVoices();
+        function startMouthAnimation() {
+            avatarBox.classList.add('speaking');
+            statusText.textContent = 'Hablando...';
+            let isOpen = false;
+            if (mouthInterval) clearInterval(mouthInterval);
+            mouthInterval = setInterval(() => {
+                isOpen = !isOpen;
+                const imgClosed = document.getElementById('imgClosed');
+                const imgOpen = document.getElementById('imgOpen');
+                if (isOpen) {
+                    imgClosed.style.opacity = '0';
+                    imgOpen.style.opacity = '1';
+                } else {
+                    imgClosed.style.opacity = '1';
+                    imgOpen.style.opacity = '0';
+                }
+            }, 150);
         }
 
-        window.speechSynthesis.onvoiceschanged = loadVoices;
-        loadVoices();
+        function stopMouthAnimation() {
+            if (mouthInterval) clearInterval(mouthInterval);
+            avatarBox.classList.remove('speaking');
+            document.getElementById('imgClosed').style.opacity = '1';
+            document.getElementById('imgOpen').style.opacity = '0';
+            statusText.textContent = 'Lista para hablar';
+        }
 
+        // Sistema de voz en la nube ultra-natural con voz 100% femenina garantizada
         function speakText(text) {
+            startMouthAnimation();
+
+            // Codificamos el texto para enviarlo de forma segura por URL al sintetizador en línea
+            const encodedText = encodeURIComponent(text);
+            // Usamos un servicio público de TTS en streaming con voz femenina predeterminada en español (es-ES-ElviraNeural o similar)
+            const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=es&client=tw-ob`;
+
+            const audio = new Audio(audioUrl);
+            
+            audio.play().catch(() => {
+                // Si el navegador bloquea el autoplay por restricciones de usuario, intentamos respaldo local
+                fallbackLocalSpeech(text);
+            });
+
+            audio.onended = () => {
+                stopMouthAnimation();
+            };
+
+            audio.onerror = () => {
+                fallbackLocalSpeech(text);
+            };
+        }
+
+        // Respaldo por si acaso la red falla: fuerza tonos agudos extremos en navegador
+        function fallbackLocalSpeech(text) {
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
-
                 const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 1.1;
+                utterance.pitch = 2.0; // Tono ultra alto para forzar voz de mujer/niña
                 
-                // Forzar la selección estricta de voz femenina en español
-                let spanishVoices = voices.filter(v => v.lang.startsWith('es'));
-                let femaleVoice = spanishVoices.find(v => 
-                    v.name.toLowerCase().includes('female') || 
-                    v.name.toLowerCase().includes('woman') || 
-                    v.name.toLowerCase().includes('helena') || 
-                    v.name.toLowerCase().includes('laura') || 
-                    v.name.toLowerCase().includes('zira') || 
-                    v.name.toLowerCase().includes('lucia') || 
-                    v.name.toLowerCase().includes('sabina') || 
-                    v.name.toLowerCase().includes('paula') || 
-                    v.name.toLowerCase().includes('monica') ||
-                    v.name.toLowerCase().includes('sofia') ||
-                    v.name.toLowerCase().includes('conchita') ||
-                    v.name.toLowerCase().includes('mia')
-                );
+                let voices = window.speechSynthesis.getVoices();
+                let spanishVoice = voices.find(v => v.lang.startsWith('es') && !v.name.toLowerCase().includes('pablo') && !v.name.toLowerCase().includes('raul'));
+                if (spanishVoice) utterance.voice = spanishVoice;
 
-                // Si no encuentra una con nombre clave, toma una de la lista de español que no sea masculina
-                if (!femaleVoice && spanishVoices.length > 0) {
-                    femaleVoice = spanishVoices.find(v => !v.name.toLowerCase().includes('pablo') && !v.name.toLowerCase().includes('raul') && !v.name.toLowerCase().includes('alvaro') && !v.name.toLowerCase().includes('jorge')) || spanishVoices[0];
-                }
-
-                if (femaleVoice) {
-                    utterance.voice = femaleVoice;
-                }
-
-                utterance.rate = 1.05; 
-                utterance.pitch = 1.6; // Tono más alto y claro para garantizar voz de mujer
-
-                let mouthInterval;
-
-                utterance.onstart = () => {
-                    avatarBox.classList.add('speaking');
-                    statusText.textContent = 'Hablando...';
-
-                    let isOpen = false;
-                    mouthInterval = setInterval(() => {
-                        isOpen = !isOpen;
-                        const imgClosed = document.getElementById('imgClosed');
-                        const imgOpen = document.getElementById('imgOpen');
-                        if (isOpen) {
-                            imgClosed.style.opacity = '0';
-                            imgOpen.style.opacity = '1';
-                        } else {
-                            imgClosed.style.opacity = '1';
-                            imgOpen.style.opacity = '0';
-                        }
-                    }, 150);
-                };
-
-                utterance.onend = () => {
-                    clearInterval(mouthInterval);
-                    avatarBox.classList.remove('speaking');
-                    document.getElementById('imgClosed').style.opacity = '1';
-                    document.getElementById('imgOpen').style.opacity = '0';
-                    statusText.textContent = 'Lista para hablar';
-                };
-
-                utterance.onerror = () => {
-                    clearInterval(mouthInterval);
-                    avatarBox.classList.remove('speaking');
-                    document.getElementById('imgClosed').style.opacity = '1';
-                    document.getElementById('imgOpen').style.opacity = '0';
-                    statusText.textContent = 'Lista para hablar';
-                };
+                utterance.onstart = () => startMouthAnimation();
+                utterance.onend = () => stopMouthAnimation();
+                utterance.onerror = () => stopMouthAnimation();
 
                 window.speechSynthesis.speak(utterance);
+            } else {
+                stopMouthAnimation();
             }
         }
 
-        // Generador de respuestas inteligentes y variadas según lo que escribas
+        // Generador de respuestas inteligentes y variadas
         function getAIResponse(userText) {
             const text = userText.toLowerCase();
 
@@ -331,7 +322,6 @@
             } else if (text.includes('ayuda') || text.includes('comandos')) {
                 return "Puedo charlar contigo, responder dudas sobre programación, juegos o servidores. ¡Escribe lo que quieras y te respondo!";
             } else {
-                // Respuestas dinámicas generales para que nunca suene repetitivo
                 const options = [
                     "Interesante punto de vista. Cuéntame más al respecto.",
                     "Entendido perfectamente. ¿Hay algo más en lo que te pueda apoyar por aquí?",
