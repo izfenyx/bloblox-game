@@ -21,8 +21,8 @@ app.post('/api/chat', async (req, res) => {
         const { message } = req.body;
         if (!message) return res.status(400).json({ error: 'Mensaje vacío' });
 
-        // Usamos un modelo ágil y optimizado para respuestas rápidas en Discord
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        // Usamos el modelo estable y rápido actual de Google
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
         const bodyPayload = {
             system_instruction: {
@@ -52,13 +52,12 @@ app.post('/api/chat', async (req, res) => {
         const aiResponseText = data.candidates[0].content.parts[0].text;
 
         // --- FILTRO INTELIGENTE PARA EL AUDIO ---
-        // Elimina emojis y markdown para que la voz no lea símbolos raros ni "emoji de..."
         const textForSpeech = aiResponseText
             .replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD00-\uDDFF])/g, '')
             .replace(/[*_`#]/g, '')
             .trim();
 
-        // 2. Generar el archivo de audio externo con gTTS usando el texto limpio
+        // 2. Generar el archivo de audio externo con gTTS
         const audioFileName = `voice_${Date.now()}_${Math.random().toString(36).substring(7)}.mp3`;
         const audioFilePath = path.join(__dirname, audioFileName);
 
@@ -79,7 +78,7 @@ app.post('/api/chat', async (req, res) => {
             fs.unlinkSync(audioFilePath);
         }
 
-        // 4. Enviar respuesta final al frontend (Texto completo con emojis + Audio limpio)
+        // 4. Enviar respuesta final al frontend
         res.json({
             text: aiResponseText,
             audioBase64: audioBase64
